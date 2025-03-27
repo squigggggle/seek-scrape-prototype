@@ -1,6 +1,7 @@
 import scrapy
 from bs4 import BeautifulSoup
 import json
+from urllib.parse import urlparse, urlencode
 
 class FetchHtmlSpider(scrapy.Spider):
     name = 'fetch_html'
