@@ -21,10 +21,6 @@ class FetchHtmlSpider(scrapy.Spider):
             self.max_job_ids = int(max_job_ids)
 
     def parse(self, response):
-        """
-        This function handles the job listing page and extracts job IDs.
-        It also handles pagination to move to the next page.
-        """
         # Step 1: Clean the HTML by removing unwanted elements
         soup = BeautifulSoup(response.text, 'html.parser')
 
@@ -57,9 +53,6 @@ class FetchHtmlSpider(scrapy.Spider):
             yield scrapy.Request(next_page_url, callback=self.parse)
 
     def extract_job_ids(self, soup):
-        """
-        This function searches for all div elements containing 'data-search-sol-meta' and extracts job IDs.
-        """
         job_ids = []
 
         # Step 1: Search for divs with the 'data-search-sol-meta' attribute
@@ -84,25 +77,16 @@ class FetchHtmlSpider(scrapy.Spider):
         return job_ids
 
     def save_job_ids_to_file(self, job_ids):
-        """
-        Save the list of job IDs to a file for later use.
-        """
         with open('job_ids.json', 'a', encoding='utf-8') as f:
             for job_id in job_ids:
                 f.write(f"{job_id}\n")  # Write each job_id on a new line
 
     def get_current_page(self, url):
-        """
-        Extract the current page number from the URL.
-        """
         parsed_url = urlparse(url)
         query_params = parse_qs(parsed_url.query)
         return int(query_params.get('page', [1])[0])
 
     def get_next_page_url(self, current_url):
-        """
-        Generate the URL for the next page by incrementing the 'page' query parameter.
-        """
         parsed_url = urlparse(current_url)
         query_params = parse_qs(parsed_url.query)
 
@@ -117,9 +101,5 @@ class FetchHtmlSpider(scrapy.Spider):
         return new_url if self.has_next_page(parsed_url) else None
 
     def has_next_page(self, parsed_url):
-        """
-        Check if there is a next page based on the current URL.
-        You can modify this function to check if there's a 'Next' button or other criteria to detect the last page.
-        """
         # This can be customized to check whether the 'Next' button exists or other criteria
         return True  # Assuming there's always a next page for this example
