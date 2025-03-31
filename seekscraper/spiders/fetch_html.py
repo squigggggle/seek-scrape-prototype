@@ -1,7 +1,7 @@
 import scrapy
 from bs4 import BeautifulSoup
 import json
-from urllib.parse import urlparse, urlencode
+from urllib.parse import urlparse, urlencode, parse_qs
 
 class FetchHtmlSpider(scrapy.Spider):
     name = 'fetch_html'
@@ -10,7 +10,7 @@ class FetchHtmlSpider(scrapy.Spider):
     max_pages = 5  # Default: scrape up to 5 pages
     max_job_ids = 10  # Default: collect up to 10 job IDs per page
 
-    start_urls = ['https://www.seek.co.nz/jobs-in-information-communication-technology?page=1']  # Starting URL for listings
+    start_urls = ['https://www.seek.co.nz/jobs-in-information-communication-technology']  # Starting URL for listings
 
     def __init__(self, max_pages=None, max_job_ids=None, *args, **kwargs):
         super(FetchHtmlSpider, self).__init__(*args, **kwargs)
