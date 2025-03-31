@@ -12,14 +12,6 @@ BOT_NAME = "seekscraper"
 SPIDER_MODULES = ["seekscraper.spiders"]
 NEWSPIDER_MODULE = "seekscraper.spiders"
 
-FEEDS = {
-    'full_html.html': {
-        'format': 'html',
-        'overwrite': True,
-    },
-}
-
-
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = "seekscraper (+http://www.yourdomain.com)"
 
