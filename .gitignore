@@ -1,3 +1,8 @@
+# Scraper project specific output files
+cleaned_page.html
+job_ids.json
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
