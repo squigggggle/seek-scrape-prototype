@@ -21,6 +21,13 @@ class FetchHtmlSpider(scrapy.Spider):
         if max_job_ids is not None:
             self.max_job_ids = int(max_job_ids)
 
+    def start_requests(self):
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
+        yield scrapy.Request(self.start_urls[0], headers=headers)
+
     def parse(self, response):
         # Step 1: Clean the HTML by removing unwanted elements
         soup = BeautifulSoup(response.text, 'html.parser')
