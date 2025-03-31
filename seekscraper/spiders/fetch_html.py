@@ -33,8 +33,15 @@ class FetchHtmlSpider(scrapy.Spider):
         soup = BeautifulSoup(response.text, 'html.parser')
 
         # Remove unnecessary tags like script, style, and other elements
-        for tag in soup(['script', 'style', 'nav', 'footer', 'header']):
+        for tag in soup(['script', 'style', 'nav', 'footer', 'header', 'svg', 'head']):
             tag.decompose()
+
+        for tag in soup.find_all(True):
+            tag.attrs = {key: value for key, value in tag.attrs.items() if key not in ["class", "id"]}
+
+        formatted_html = soup.prettify()
+        with open('cleaned_page.html', "w", encoding='utf-8') as f:
+            f.write(formatted_html)
 
         # Step 2: Extract job IDs from the page
         job_ids = self.extract_job_ids(soup)
