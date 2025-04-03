@@ -19,7 +19,6 @@ class FetchHtmlSpider(scrapy.Spider):
 
     # Add common browser headers
     custom_headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
         'Accept-Encoding': 'gzip, deflate, br',
@@ -35,8 +34,6 @@ class FetchHtmlSpider(scrapy.Spider):
     
     # List of user agents to rotate
     user_agents = [
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0'
     ]
 
@@ -52,6 +49,7 @@ class FetchHtmlSpider(scrapy.Spider):
     def start_requests(self):
         headers = self.custom_headers.copy()
         headers['User-Agent'] = random.choice(self.user_agents)
+        print(f"USING USER AGENT: {headers['User-Agent']}")
         yield scrapy.Request(self.start_urls[0], headers=headers)
 
     def parse(self, response):
