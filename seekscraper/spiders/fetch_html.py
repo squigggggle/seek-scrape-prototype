@@ -7,6 +7,9 @@ import time
 from scrapy.downloadermiddlewares.retry import RetryMiddleware
 from scrapy.utils.response import response_status_message
 import os
+from ..utils.file_io import save_cleaned_html, save_job_ids, wipe_job_ids
+from ..utils.browser_config import CUSTOM_HEADERS, USER_AGENTS
+from ..utils.url_utils import get_current_page, get_next_page_url
 
 class FetchHtmlSpider(scrapy.Spider):
     name = 'fetch_html'
@@ -17,25 +20,8 @@ class FetchHtmlSpider(scrapy.Spider):
 
     start_urls = ['https://www.seek.co.nz/jobs-in-information-communication-technology']  # Starting URL for listings
 
-    # Add common browser headers
-    custom_headers = {
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'DNT': '1',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
-        'Sec-Fetch-User': '?1',
-        'Cache-Control': 'max-age=0'
-    }
-    
-    # List of user agents to rotate
-    user_agents = [
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0'
-    ]
+    custom_headers = CUSTOM_HEADERS
+    user_agents = USER_AGENTS
 
     def __init__(self, max_pages=None, max_job_ids=None, *args, **kwargs):
         super(FetchHtmlSpider, self).__init__(*args, **kwargs)
@@ -67,8 +53,7 @@ class FetchHtmlSpider(scrapy.Spider):
             tag.attrs = {key: value for key, value in tag.attrs.items() if key not in ["class", "id"]}
 
         formatted_html = soup.prettify()
-        with open('cleaned_page.html', "w", encoding='utf-8') as f:
-            f.write(formatted_html)
+        save_cleaned_html(formatted_html)
 
         # Step 2: Extract job IDs from the page
         job_listings = self.extract_job_ids(soup)
@@ -82,15 +67,15 @@ class FetchHtmlSpider(scrapy.Spider):
             return  # Stops the spider from continuing to the next page
 
         # Step 4: Save the job IDs to a file
-        self.save_job_ids_to_file(job_listings)
+        save_job_ids(job_listings)
 
         # Step 5: Handle pagination by incrementing the page number
-        current_page = self.get_current_page(response.url)
+        current_page = get_current_page(response.url)
         if current_page >= self.max_pages:
             self.logger.info(f"Reached the maximum number of pages ({self.max_pages}), stopping.")
             return  # Stop if we've reached the max number of pages
 
-        next_page_url = self.get_next_page_url(response.url)
+        next_page_url = get_next_page_url(response.url)
         if next_page_url:
             headers = self.custom_headers.copy()
             headers['User-Agent'] = random.choice(self.user_agents)
@@ -106,74 +91,44 @@ class FetchHtmlSpider(scrapy.Spider):
             )
 
     def extract_job_ids(self, soup):
+        """Extract job listings from tags containing both 'jobid' and 'token'."""
+        def contains_both_jobid_and_token(tag):
+            """Check if a tag contains both 'jobid' and 'token' in any attribute value."""
+            found_jobid = found_token = False
+
+            for attr_value in tag.attrs.values():
+                if isinstance(attr_value, str):  # Ensure the attribute value is a string
+                    lower_attr = attr_value.lower()
+                    if "jobid" in lower_attr:
+                        found_jobid = True
+                    if "token" in lower_attr:
+                        found_token = True
+
+                if found_jobid and found_token:  # Stop early if both are found
+                    return True
+
+            return False
+
+        # Find all tags that contain both "jobid" and "token"
+        matching_tags = soup.find_all(contains_both_jobid_and_token)
+
         job_listings = []
-
-        # Find all divs with data-search-sol-meta
-        divs_with_data = soup.find_all('div', {'data-search-sol-meta': True})
-
-        for div in divs_with_data:
+        for tag in matching_tags:
             try:
-                # Parse the JSON data from data-search-sol-meta attribute
-                meta_data = json.loads(div['data-search-sol-meta'])
-                
-                # Extract and format the required fields
-                job_listing = {
-                    'jobId': meta_data['jobId'],
-                    'searchRequestToken': meta_data['searchRequestToken'].replace('-', '')
-                }
-                
-                job_listings.append(job_listing)
+                # Attempt to parse JSON from the tag's attributes if applicable
+                for attr_value in tag.attrs.values():
+                    if isinstance(attr_value, str) and "jobid" in attr_value.lower() and "token" in attr_value.lower():
+                        meta_data = json.loads(attr_value)
+                        job_listing = {
+                            'jobId': meta_data['jobId'],
+                            'searchRequestToken': meta_data['searchRequestToken'].replace('-', '')
+                        }
+                        job_listings.append(job_listing)
 
+                        # Stop if max_job_ids is reached
+                        if len(job_listings) >= self.max_job_ids:
+                            return job_listings
             except (json.JSONDecodeError, KeyError) as e:
-                self.logger.error(f"Error processing job listing: {e}")
-
-            if len(job_listings) >= self.max_job_ids:
-                break
+                self.logger.error(f"Error processing tag: {e}")
 
         return job_listings
-
-    def save_job_ids_to_file(self, job_listings):
-        filename = 'job_ids.json'
-        existing_data = []
-
-        if os.path.exists(filename):
-            with open(filename, 'r', encoding='utf-8') as f:
-                try:
-                    existing_data = json.load(f)
-                except json.JSONDecodeError:
-                    existing_data = []
-
-        # Add only unique entries based on jobId
-        existing_job_ids = {item['jobId'] for item in existing_data}
-        unique_new_listings = [
-            listing for listing in job_listings 
-            if listing['jobId'] not in existing_job_ids
-        ]
-
-        combined_data = existing_data + unique_new_listings
-
-        with open(filename, 'w', encoding='utf-8') as f:
-            json.dump(combined_data, f, indent=2)
-
-    def get_current_page(self, url):
-        parsed_url = urlparse(url)
-        query_params = parse_qs(parsed_url.query)
-        return int(query_params.get('page', [1])[0])
-
-    def get_next_page_url(self, current_url):
-        parsed_url = urlparse(current_url)
-        query_params = parse_qs(parsed_url.query)
-
-        # Increment the page number
-        current_page = int(query_params.get('page', [1])[0])
-        next_page = current_page + 1
-        query_params['page'] = str(next_page)
-
-        # Rebuild the URL with the updated 'page' parameter
-        new_url = parsed_url._replace(query=urlencode(query_params, doseq=True)).geturl()
-
-        return new_url if self.has_next_page(parsed_url) else None
-
-    def has_next_page(self, parsed_url):
-        # This can be customized to check whether the 'Next' button exists or other criteria
-        return True  # Assuming there's always a next page for this example
