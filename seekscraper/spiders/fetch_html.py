@@ -1,12 +1,8 @@
 import scrapy
 from bs4 import BeautifulSoup
 import json
-from urllib.parse import urlparse, urlencode, parse_qs
 import random
 import time
-from scrapy.downloadermiddlewares.retry import RetryMiddleware
-from scrapy.utils.response import response_status_message
-import os
 from ..utils.file_io import save_cleaned_html, save_job_ids, wipe_job_ids
 from ..utils.browser_config import CUSTOM_HEADERS, USER_AGENTS
 from ..utils.url_utils import get_current_page, get_next_page_url
